@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Environment variables (DB passwords) — never commit
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS / editor files
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/settings.json
+.idea/
+
+# Claude Code: keep shared skills, ignore personal local settings
+.claude/settings.local.json
+
+# Skill test workspaces
+*-workspace/
