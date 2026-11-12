@@ -8,6 +8,7 @@ import {
     BadRequestError,
     normalizePhone,
     parseDateRange,
+    parseDay,
     parsePagination,
     parseStatus,
     sendErrorResponse,
@@ -86,33 +87,6 @@ export const getHistoryByPhone = async (req, res) => {
     } catch (error) {
         sendErrorResponse(res, "GET /api/topup/history/:phone", error, FAILURE_MESSAGE);
     }
-};
-
-const DAY_PATTERN = /^(\d{4})-?(\d{2})-?(\d{2})$/; // "YYYY-MM-DD" or "YYYYMMDD"
-
-// Returns the day as "YYYY-MM-DD" (default: today). Throws if the format or date is invalid.
-const parseDay = (dayInput) => {
-    if (!dayInput) {
-        const today = new Date();
-        return [
-            today.getFullYear(),
-            String(today.getMonth() + 1).padStart(2, "0"),
-            String(today.getDate()).padStart(2, "0"),
-        ].join("-");
-    }
-
-    const dayMatch = DAY_PATTERN.exec(dayInput);
-    if (!dayMatch) throw new BadRequestError("date must be YYYY-MM-DD or YYYYMMDD");
-
-    const [, year, month, dayOfMonth] = dayMatch;
-    const parsedDate = new Date(Number(year), Number(month) - 1, Number(dayOfMonth));
-    const isRealDate =
-        parsedDate.getFullYear() === Number(year) &&
-        parsedDate.getMonth() === Number(month) - 1 &&
-        parsedDate.getDate() === Number(dayOfMonth);
-    if (!isRealDate) throw new BadRequestError("date is not a valid calendar date");
-
-    return `${year}-${month}-${dayOfMonth}`;
 };
 
 /**

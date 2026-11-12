@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import { connectAll, getDb135, getDb22 } from "./src/config/db.js";
 import topupRoutes from "./src/routes/topup.routes.js";
 import transferRoutes from "./src/routes/transfer.routes.js";
+import packageRoutes from "./src/routes/package.routes.js";
 
 dotenv.config();
 const app = express();
@@ -31,6 +32,7 @@ app.get("/health/db", async (req, res) => {
 
 app.use("/api/topup", topupRoutes);
 app.use("/api/transfer", transferRoutes);
+app.use("/api/package", packageRoutes);
 await connectAll();
 app.listen(process.env.PORT, async () => {
   console.log(`Server is running on port ${process.env.PORT}`);
