@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+    branches: [main, development]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    # CI needs no access to the private network, so a GitHub-hosted runner is fine
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Syntax check
+        run: |
+          for f in index.js $(find src -name "*.js"); do
+            echo "Checking $f"
+            node --check "$f"
+          done
+
+      - name: Import check (routes, controllers, services)
+        # Loads every module without connecting to the database, so missing
+        # files, bad import paths and missing exports fail the build
+        run: |
+          node --input-type=module -e "
+            for (const r of ['topup', 'transfer', 'package']) {
+              await import('./src/routes/' + r + '.routes.js');
+            }
+            console.log('All modules imported OK');
+          "
+
+      - name: Security audit (production dependencies)
+        run: npm audit --omit=dev --audit-level=high
+        continue-on-error: true
