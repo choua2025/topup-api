@@ -1,7 +1,7 @@
 // Shared helpers for reading and validating request query params
 
 const MAX_PAGE_SIZE = 100;
-const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 10;
 const MILLISECONDS_PER_DAY = 86400000;
 const DATE_ONLY_LENGTH = 10; // "YYYY-MM-DD"
 const DATE_HOUR_MINUTE_LENGTH = 16; // "YYYY-MM-DD HH:mm"

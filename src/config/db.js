@@ -29,6 +29,12 @@ const dbConfigs = {
         password: process.env.DB_PASSWORD_22,
         database: process.env.DB_NAME_22,
     },
+    db100: {
+        server: process.env.DB_HOST_100,
+        user: process.env.DB_USER_100,
+        password: process.env.DB_PASSWORD_100,
+        database: process.env.DB_NAME_100,
+    },
 };
 
 const connectionPools = {};
@@ -48,6 +54,7 @@ const getPool = (serverName) => {
 
 export const getDb135 = () => getPool("db135");
 export const getDb22 = () => getPool("db22");
+export const getDb100 = () => getPool("db100");
 
 // Connect to all servers at startup and log the result
 export const connectAll = async () => {

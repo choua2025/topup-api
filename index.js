@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import { connectAll, getDb135, getDb22 } from "./src/config/db.js";
+import { connectAll, getDb135, getDb22,getDb100 } from "./src/config/db.js";
 import topupRoutes from "./src/routes/topup.routes.js";
 import transferRoutes from "./src/routes/transfer.routes.js";
 import packageRoutes from "./src/routes/package.routes.js";
@@ -27,6 +27,7 @@ app.get("/health/db", async (req, res) => {
   res.json({
     db135: await checkConnection(getDb135),
     db22: await checkConnection(getDb22),
+    db100: await checkConnection(getDb100),
   });
 });
 

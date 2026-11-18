@@ -69,7 +69,7 @@ export const getRegisterHistory = async (req, res) => {
         if (day < minHistoryDate) {
             throw new BadRequestError(historyNotAvailableMessage(minHistoryDate));
         }
-
+   
         const channel = parseChannel(queryParams.channel);
         const packageCode = parsePackageCode(queryParams.packageCode);
         const status = parseStatus(queryParams.status);
