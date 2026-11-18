@@ -1,0 +1,97 @@
+name: CD
+
+# Deploys only after the CI workflow succeeds on main (or when run manually)
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  SSH_HOST: 172.28.14.181
+  SSH_USER: administrator
+  APP_NAME: topup-api
+  DEPLOY_DIR: /home/administrator/topup-api
+
+jobs:
+  deploy:
+    # 172.28.14.181 is a private IP, so this must run on a self-hosted runner inside the LAN
+    runs-on: self-hosted
+    # Skip if CI failed; also block deploying a non-main CI run
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push')
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Deploy exactly the commit that CI tested
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Upload code
+        run: |
+          ssh -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" "mkdir -p '$DEPLOY_DIR'"
+          # .env stays on the server and is never overwritten
+          tar czf - \
+            --exclude=.git \
+            --exclude=.github \
+            --exclude=.claude \
+            --exclude=node_modules \
+            --exclude=docs \
+            --exclude='.env' \
+            --exclude='.env.*' \
+            . | ssh -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" "tar xzf - -C '$DEPLOY_DIR'"
+
+      - name: Install dependencies and restart app
+        run: |
+          ssh -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" bash -s <<EOF
+          set -e
+          cd "$DEPLOY_DIR"
+          if [ ! -f .env ]; then
+            echo "ERROR: $DEPLOY_DIR/.env not found on server" >&2
+            exit 1
+          fi
+          npm ci --omit=dev
+          if pm2 describe "$APP_NAME" > /dev/null 2>&1; then
+            pm2 reload "$APP_NAME" --update-env
+          else
+            pm2 start index.js --name "$APP_NAME" --cwd "$DEPLOY_DIR"
+          fi
+          pm2 save
+          EOF
+
+      - name: Health check
+        run: |
+          ssh -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" bash -s -- "$DEPLOY_DIR" "$APP_NAME" <<'EOF'
+          cd "$1"
+          PORT=$(grep -E '^\s*PORT\s*=' .env | head -1 | cut -d= -f2 | tr -d ' \r"')
+          for i in 1 2 3 4 5 6; do
+            if curl -fsS "http://localhost:${PORT}/health/db"; then echo; exit 0; fi
+            sleep 5
+          done
+          echo "Health check failed" >&2
+          pm2 logs "$2" --lines 50 --nostream
+          exit 1
+          EOF
+
+      - name: Clean up SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

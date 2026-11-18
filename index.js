@@ -10,6 +10,7 @@ dotenv.config();
 const app = express();
 app.use(cors());
 app.use(express.json());
+const PORT = process.env.PORT;
 
 // Health check: confirms both SQL Server connections work
 app.get("/health/db", async (req, res) => {
@@ -35,6 +36,6 @@ app.use("/api/topup", topupRoutes);
 app.use("/api/transfer", transferRoutes);
 app.use("/api/package", packageRoutes);
 await connectAll();
-app.listen(process.env.PORT, async () => {
-  console.log(`Server is running on port ${process.env.PORT}`);
+app.listen(PORT, async () => {
+  console.log(`Server is running on port ${PORT}`);
 });
