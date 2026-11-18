@@ -18,7 +18,7 @@ from what is written here, trust the code and update this file.
 | Controller | `src/controllers/*.controller.js` | Read and validate `req.query` / `req.params`, call service, send JSON. |
 | Service | `src/services/*.service.js` | SQL only. Returns plain data / `{ data, pagination }`. |
 | Shared helpers | `src/utils/request.helpers.js` | `parseDateRange`, `parsePagination`, `parseStatus`, `normalizePhone`, `parseOptionalPhone`, `BadRequestError`, `sendErrorResponse`. Reuse these; don't re-implement them. |
-| DB config | `src/config/db.js` | All DB config in this one file. `getDb135()` (MTOPUP), `getDb22()` (SPNV), `sql`. |
+| DB config | `src/config/db.js` | All DB config in this one file. `getDb135()` (MTOPUP), `getDb22()` (SPNV), `getDb100()` (MBAPP), `sql`. |
 
 ### Existing endpoints (as of 2026-11-12 — check `src/routes/` for the current list)
 
@@ -28,6 +28,7 @@ from what is written here, trust the code and update this file.
 | `GET /api/topup/history/:phone` | `getHistoryByPhone` → `getTopupHistoryByPhone` | receiver-first lookup, ≤ 31 days |
 | `GET /api/topup/historyByPhone?phone=&date=` | `getDailyByPhone` → `getDailyTopupsByReceiver` | `V_TRANSFER_LOG`, one day |
 | `GET /api/topup/logs?date=&userId=` | `getLogsByDay` → `getTopupLogsByDay` | `V_TRANSFER_LOG`, one day |
+| `GET /api/topup/refillcard?from=&to=&phone=` | `getRefillCardHistory` → `getRefillCardHistory` | MBAPP `Tb_Refillcard`, ≤ 31 days (≤ 366 with phone) |
 | `GET /api/transfer/historyTransfer` | `getHistoryTransfer` → `getTransferHistory` | `tb_tansfer_bl_USSD_logs`, ≤ 366 days |
 | `GET /api/transfer/historyTransfer/:phone` | `getHistoryByPhone` → `getTransferHistory` + `getTransferSummaryByPhone` | same, with totals |
 | `GET /health/db` | inline in `index.js` | `@@SERVERNAME` on both servers |
@@ -52,7 +53,7 @@ controllers need the same new helper, put it in `request.helpers.js`.
 
 - Success: `{ success: true, ...filters echoed back, data: [...], pagination: { page, limit, total, totalPages } }`
 - Error: `{ success: false, message }` — 400 via `BadRequestError`, 500 via `sendErrorResponse`.
-- Paging: `page` default 1, `limit` default 20, max 100 (`parsePagination`).
+- Paging: `page` default 1, `limit` default 10, max 100 (`parsePagination`).
 - Dates in: `YYYY-MM-DD`, `YYYYMMDD` or `YYYY-MM-DD HH:mm:ss`. Dates out:
   `CONVERT(varchar(23), CDATE, 121)` → `"2026-11-10 18:33:14.220"` (server local time, no `Z`).
 - Phone numbers: always pass through `normalizePhone` (accepts `020…`, `+856…`, `856…`, 8 digits).
@@ -68,6 +69,7 @@ user for their DBA instead.
 |---|---|---|
 | 135 (`getDb135`) | MTOPUP | Partner top-up logs, money-transfer (USSD) logs |
 | 22 (`getDb22`) | SPNV | Package registration (`DREGISTER_PKG*`, `Tb_PACKAGE`, …) |
+| 100 (`getDb100`) | MBAPP | App data, incl. `Tb_Refillcard` (scratch-card refills) |
 
 Known MTOPUP tables:
 
@@ -79,6 +81,12 @@ Known MTOPUP tables:
 - `tb_tansfer_bl_USSD_logs` — money transfers between subscribers (small, ~8.5k rows).
   Success = `step = 'tansfer' AND resultCode = '200'`.
 - `tb_tansfer_bl_USSD_user` — contains password hashes. Never expose it through the API.
+
+Known MBAPP tables:
+
+- `Tb_Refillcard` — ~751k rows since 2020-11, ~340/day, no indexes but fast (31 days ≈ 0.7 s).
+  Success = `Code = '0'` (`Status` is often empty). `Pinno` holds scratch-card PINs — always mask.
+  `MSISDN` is mostly `20XXXXXXXX`, some legacy `02…`/`030…` forms. Amounts are stored as text.
 
 ### Query rules (learned the hard way)
 

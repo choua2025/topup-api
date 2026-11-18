@@ -1,5 +1,6 @@
 import {
     getDailyTopupsByReceiver,
+    getRefillCardHistory as getRefillCardHistoryPage,
     getTopupHistory,
     getTopupHistoryByPhone,
     getTopupLogsByDay,
@@ -8,6 +9,8 @@ import {
     BadRequestError,
     normalizePhone,
     parseDateRange,
+    parseDay,
+    parseOptionalPhone,
     parsePagination,
     parseStatus,
     sendErrorResponse,
@@ -17,6 +20,12 @@ import {
 const MAX_RANGE_DAYS = 31;
 const PHONE_DIGITS_PATTERN = /^\d{8,10}$/;
 const FAILURE_MESSAGE = "Failed to get top-up history";
+
+// Refill card log (MBAPP.dbo.Tb_Refillcard on server 100)
+const REFILL_CARD_FAILURE_MESSAGE = "Failed to get refill card history";
+const REFILL_CARD_DEFAULT_DAYS = 1;
+const REFILL_CARD_PHONE_DEFAULT_DAYS = 30;
+const REFILL_CARD_PHONE_MAX_RANGE_DAYS = 366;
 
 /**
  * GET /api/topup/history
@@ -67,7 +76,7 @@ export const getHistory = async (req, res) => {
  */
 export const getHistoryByPhone = async (req, res) => {
     try {
-        const phone = normalizePhone(req.params.phone);
+        const phone = normalizePhone(req.query.phone);
         if (!phone) {
             throw new BadRequestError("Invalid phone number.");
         }
@@ -81,38 +90,12 @@ export const getHistoryByPhone = async (req, res) => {
             status: parseStatus(queryParams.status),
             ...parsePagination(queryParams),
         });
+      
 
         res.json({ success: true, phone, filter: dateRange, ...historyPage });
     } catch (error) {
-        sendErrorResponse(res, "GET /api/topup/history/:phone", error, FAILURE_MESSAGE);
+        sendErrorResponse(res, "GET /api/topup/historyByPhone/", error, FAILURE_MESSAGE);
     }
-};
-
-const DAY_PATTERN = /^(\d{4})-?(\d{2})-?(\d{2})$/; // "YYYY-MM-DD" or "YYYYMMDD"
-
-// Returns the day as "YYYY-MM-DD" (default: today). Throws if the format or date is invalid.
-const parseDay = (dayInput) => {
-    if (!dayInput) {
-        const today = new Date();
-        return [
-            today.getFullYear(),
-            String(today.getMonth() + 1).padStart(2, "0"),
-            String(today.getDate()).padStart(2, "0"),
-        ].join("-");
-    }
-
-    const dayMatch = DAY_PATTERN.exec(dayInput);
-    if (!dayMatch) throw new BadRequestError("date must be YYYY-MM-DD or YYYYMMDD");
-
-    const [, year, month, dayOfMonth] = dayMatch;
-    const parsedDate = new Date(Number(year), Number(month) - 1, Number(dayOfMonth));
-    const isRealDate =
-        parsedDate.getFullYear() === Number(year) &&
-        parsedDate.getMonth() === Number(month) - 1 &&
-        parsedDate.getDate() === Number(dayOfMonth);
-    if (!isRealDate) throw new BadRequestError("date is not a valid calendar date");
-
-    return `${year}-${month}-${dayOfMonth}`;
 };
 
 /**
@@ -171,5 +154,34 @@ export const getLogsByDay = async (req, res) => {
         res.json({ success: true, date: day, ...topupLogPage });
     } catch (error) {
         sendErrorResponse(res, "GET /api/topup/logs", error, FAILURE_MESSAGE);
+    }
+};
+
+/**
+ * GET /api/topup/refillcard?from=2026-11-01&to=2026-11-18&phone=02076654156&page=1&limit=10
+ * Scratch-card refill history (MBAPP.dbo.Tb_Refillcard), newest first.
+ * Query params:
+ *   from, to    - "YYYY-MM-DD" or "YYYY-MM-DD HH:mm:ss". Default: today (last 30 days with phone).
+ *                 Max range: 31 days, or 366 days when phone is given.
+ *   phone       - optional phone that received the refill (MSISDN), any Lao format
+ *   page, limit (default 1, 10; max limit 100)
+ */
+export const getRefillCardHistory = async (req, res) => {
+    try {
+        const queryParams = req.query;
+        const phone = parseOptionalPhone(queryParams.phone, "phone");
+        const dateRange = parseDateRange(queryParams, phone
+            ? { defaultDays: REFILL_CARD_PHONE_DEFAULT_DAYS, maxRangeDays: REFILL_CARD_PHONE_MAX_RANGE_DAYS }
+            : { defaultDays: REFILL_CARD_DEFAULT_DAYS, maxRangeDays: MAX_RANGE_DAYS });
+
+        const refillCardPage = await getRefillCardHistoryPage({
+            ...dateRange,
+            phone,
+            ...parsePagination(queryParams),
+        });
+
+        res.json({ success: true, phone, filter: dateRange, ...refillCardPage });
+    } catch (error) {
+        sendErrorResponse(res, "GET /api/topup/refillcard", error, REFILL_CARD_FAILURE_MESSAGE);
     }
 };

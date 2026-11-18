@@ -1,7 +1,7 @@
 // Shared helpers for reading and validating request query params
 
 const MAX_PAGE_SIZE = 100;
-const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 10;
 const MILLISECONDS_PER_DAY = 86400000;
 const DATE_ONLY_LENGTH = 10; // "YYYY-MM-DD"
 const DATE_HOUR_MINUTE_LENGTH = 16; // "YYYY-MM-DD HH:mm"
@@ -35,6 +35,12 @@ const parseDateTime = (dateTimeText) => new Date(dateTimeText.replace(" ", "T"))
  * A date-only `to` includes that whole day. Without from/to, the last `defaultDays` days are used.
  */
 export const parseDateRange = (queryParams, { defaultDays, maxRangeDays }) => {
+    for (const dateParamName of ["from", "to"]) {
+        const dateParamValue = queryParams[dateParamName];
+        if (dateParamValue !== undefined && typeof dateParamValue !== "string") {
+            throw new BadRequestError(`${dateParamName} must be a single value`);
+        }
+    }
     const today = new Date();
     const fromInput = queryParams.from || queryParams.to || formatDate(addDays(today, 1 - defaultDays));
     const toInput = queryParams.to || queryParams.from || formatDate(today);
@@ -65,6 +71,32 @@ export const parsePagination = (queryParams) => {
     const pageSize = Math.min(Math.max(parseInt(queryParams.limit) || DEFAULT_PAGE_SIZE, 1), MAX_PAGE_SIZE);
     return { page: pageNumber, limit: pageSize };
 };
+
+const DAY_PATTERN = /^(\d{4})-?(\d{2})-?(\d{2})$/; // "YYYY-MM-DD" or "YYYYMMDD"
+
+// Returns the day as "YYYY-MM-DD" (default: today). Throws if the format or date is invalid.
+export const parseDay = (dayInput) => {
+    if (!dayInput) return formatDate(new Date());
+
+    const dayMatch = DAY_PATTERN.exec(dayInput);
+    if (!dayMatch) throw new BadRequestError("date must be YYYY-MM-DD or YYYYMMDD");
+
+    const [, year, month, dayOfMonth] = dayMatch;
+    const parsedDate = new Date(Number(year), Number(month) - 1, Number(dayOfMonth));
+    const isRealDate =
+        parsedDate.getFullYear() === Number(year) &&
+        parsedDate.getMonth() === Number(month) - 1 &&
+        parsedDate.getDate() === Number(dayOfMonth);
+    if (!isRealDate) throw new BadRequestError("date is not a valid calendar date");
+
+    return `${year}-${month}-${dayOfMonth}`;
+};
+
+// Turns a "YYYY-MM-DD" day into { from, to } covering that whole day ("YYYY-MM-DD HH:mm:ss", `to` exclusive)
+export const dayToDateRange = (day) => ({
+    from: `${day} 00:00:00`,
+    to: `${formatDate(addDays(parseDateTime(`${day} 00:00:00`), 1))} 00:00:00`,
+});
 
 export const parseStatus = (statusInput) => {
     if (statusInput && !VALID_STATUSES.includes(statusInput)) {
