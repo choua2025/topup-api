@@ -35,12 +35,25 @@ const dbConfigs = {
         password: process.env.DB_PASSWORD_100,
         database: process.env.DB_NAME_100,
     },
+    db125: {
+        server: process.env.DB_HOST_125,
+        user: process.env.DB_USER_125,
+        password: process.env.DB_PASSWORD_125,
+        // No database: queries use 4-part linked-server names (see VAS_DATABASE below)
+    },
 };
+
+export const serverNames = Object.keys(dbConfigs);
+
+// VAS database on 172.28.14.81\TPLUSMSSQLSERVER, reached through the linked server on db125.
+// Override with VAS_DATABASE in .env; String.raw keeps the backslash.
+export const VAS_DATABASE =
+    process.env.VAS_DATABASE || String.raw`[172.28.14.81\TPLUSMSSQLSERVER].[VAS].[dbo]`;
 
 const connectionPools = {};
 
 // Returns a cached connection pool for the given server name
-const getPool = (serverName) => {
+export const getPool = (serverName) => {
     if (!connectionPools[serverName]) {
         connectionPools[serverName] = new sql.ConnectionPool({ ...baseOptions, ...dbConfigs[serverName] })
             .connect()
@@ -55,10 +68,10 @@ const getPool = (serverName) => {
 export const getDb135 = () => getPool("db135");
 export const getDb22 = () => getPool("db22");
 export const getDb100 = () => getPool("db100");
+export const getDb125 = () => getPool("db125");
 
 // Connect to all servers at startup and log the result
 export const connectAll = async () => {
-    const serverNames = Object.keys(dbConfigs);
     const connectionResults = await Promise.allSettled(serverNames.map(getPool));
     connectionResults.forEach((connectionResult, index) => {
         const serverName = serverNames[index];

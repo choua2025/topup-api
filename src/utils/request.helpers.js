@@ -66,10 +66,13 @@ export const parseDateRange = (queryParams, { defaultDays, maxRangeDays }) => {
     return { from: fromDateTime, to: toDateTime };
 };
 
+// Row limit clamped to 1..MAX_PAGE_SIZE (default: defaultLimit)
+export const parseLimit = (limitInput, defaultLimit = DEFAULT_PAGE_SIZE) =>
+    Math.min(Math.max(parseInt(limitInput) || defaultLimit, 1), MAX_PAGE_SIZE);
+
 export const parsePagination = (queryParams) => {
     const pageNumber = Math.max(parseInt(queryParams.page) || 1, 1);
-    const pageSize = Math.min(Math.max(parseInt(queryParams.limit) || DEFAULT_PAGE_SIZE, 1), MAX_PAGE_SIZE);
-    return { page: pageNumber, limit: pageSize };
+    return { page: pageNumber, limit: parseLimit(queryParams.limit) };
 };
 
 const DAY_PATTERN = /^(\d{4})-?(\d{2})-?(\d{2})$/; // "YYYY-MM-DD" or "YYYYMMDD"

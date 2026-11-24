@@ -14,10 +14,10 @@ from what is written here, trust the code and update this file.
 
 | Layer | Folder | Job |
 |---|---|---|
-| Route | `src/routes/*.routes.js` | Map URL to controller function only. Mounted in `index.js` (`/api/topup`, `/api/transfer`). |
+| Route | `src/routes/*.routes.js` | Map URL to controller function only. Each group is mounted in `src/routes/index.js` (`/topup`, `/transfer`, `/package`, `/pinpuk`), which `index.js` mounts at `/api`. A new route group gets one line there. |
 | Controller | `src/controllers/*.controller.js` | Read and validate `req.query` / `req.params`, call service, send JSON. |
 | Service | `src/services/*.service.js` | SQL only. Returns plain data / `{ data, pagination }`. |
-| Shared helpers | `src/utils/request.helpers.js` | `parseDateRange`, `parsePagination`, `parseStatus`, `normalizePhone`, `parseOptionalPhone`, `BadRequestError`, `sendErrorResponse`. Reuse these; don't re-implement them. |
+| Shared helpers | `src/utils/request.helpers.js` | `parseDateRange`, `parsePagination`, `parseLimit`, `parseStatus`, `normalizePhone`, `parseOptionalPhone`, `BadRequestError`, `sendErrorResponse`. Reuse these; don't re-implement them. |
 | DB config | `src/config/db.js` | All DB config in this one file. `getDb135()` (MTOPUP), `getDb22()` (SPNV), `getDb100()` (MBAPP), `sql`. |
 
 ### Existing endpoints (as of 2026-11-12 — check `src/routes/` for the current list)

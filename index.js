@@ -1,22 +1,21 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import { connectAll, getDb135, getDb22,getDb100 } from "./src/config/db.js";
-import topupRoutes from "./src/routes/topup.routes.js";
-import transferRoutes from "./src/routes/transfer.routes.js";
-import packageRoutes from "./src/routes/package.routes.js";
+import { connectAll, getPool, serverNames } from "./src/config/db.js";
+import apiRoutes from "./src/routes/index.js";
 
 dotenv.config();
 const app = express();
 app.use(cors());
 app.use(express.json());
 const PORT = process.env.PORT;
+const HOST = process.env.HOST;
 
-// Health check: confirms both SQL Server connections work
+// Health check: confirms every SQL Server connection works (checked in parallel)
 app.get("/health/db", async (req, res) => {
-  const checkConnection = async (getDbPool) => {
+  const checkConnection = async (serverName) => {
     try {
-      const dbPool = await getDbPool();
+      const dbPool = await getPool(serverName);
       const queryResult = await dbPool
         .request()
         .query("SELECT @@SERVERNAME AS server, DB_NAME() AS db");
@@ -25,17 +24,14 @@ app.get("/health/db", async (req, res) => {
       return { ok: false, error: error.message };
     }
   };
-  res.json({
-    db135: await checkConnection(getDb135),
-    db22: await checkConnection(getDb22),
-    db100: await checkConnection(getDb100),
-  });
+  const connectionChecks = await Promise.all(
+    serverNames.map(async (serverName) => [serverName, await checkConnection(serverName)]),
+  );
+  res.json(Object.fromEntries(connectionChecks));
 });
 
-app.use("/api/topup", topupRoutes);
-app.use("/api/transfer", transferRoutes);
-app.use("/api/package", packageRoutes);
+app.use("/api", apiRoutes);
 await connectAll();
-app.listen(PORT, async () => {
-  console.log(`Server is running on port ${PORT}`);
+app.listen(PORT, HOST, () => {
+  console.log(`Server is running on port ${HOST}:${PORT}`);
 });

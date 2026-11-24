@@ -1,19 +1,19 @@
 import {
-    getDailyTopupsByReceiver,
-    getRefillCardHistory as getRefillCardHistoryPage,
-    getTopupHistory,
-    getTopupHistoryByPhone,
-    getTopupLogsByDay,
+  getDailyTopupsByReceiver,
+  getRefillCardHistory as getRefillCardHistoryPage,
+  getTopupHistory,
+  getTopupHistoryByPhone,
+  getTopupLogsByDay,
 } from "../services/topup.service.js";
 import {
-    BadRequestError,
-    normalizePhone,
-    parseDateRange,
-    parseDay,
-    parseOptionalPhone,
-    parsePagination,
-    parseStatus,
-    sendErrorResponse,
+  BadRequestError,
+  normalizePhone,
+  parseDateRange,
+  parseDay,
+  parseOptionalPhone,
+  parsePagination,
+  parseStatus,
+  sendErrorResponse,
 } from "../utils/request.helpers.js";
 
 // Top-up log tables have no indexes, so keep the date range short
@@ -39,31 +39,33 @@ const REFILL_CARD_PHONE_MAX_RANGE_DAYS = 366;
  *   page, limit (default 1, 20; max limit 100)
  */
 export const getHistory = async (req, res) => {
-    try {
-        const queryParams = req.query;
-        const dateRange = parseDateRange(queryParams, { defaultDays: 1, maxRangeDays: MAX_RANGE_DAYS });
+  try {
+    const queryParams = req.query;
+    const dateRange = parseDateRange(queryParams, {
+      defaultDays: 1,
+      maxRangeDays: MAX_RANGE_DAYS,
+    });
 
-        for (const phoneParamName of ["receiver", "masterSim"]) {
-            const phoneValue = queryParams[phoneParamName];
-            if (phoneValue && !PHONE_DIGITS_PATTERN.test(phoneValue)) {
-                throw new BadRequestError(`${phoneParamName} must be 8-10 digits`);
-            }
-        }
-
-        const historyPage = await getTopupHistory({
-            ...dateRange,
-            receiver: queryParams.receiver || null,
-            masterSim: queryParams.masterSim || null,
-            userId: queryParams.userId || null,
-            transId: queryParams.transId || null,
-            status: parseStatus(queryParams.status),
-            ...parsePagination(queryParams),
-        });
-
-        res.json({ success: true, filter: dateRange, ...historyPage });
-    } catch (error) {
-        sendErrorResponse(res, "GET /api/topup/history", error, FAILURE_MESSAGE);
+    for (const phoneParamName of ["receiver", "masterSim"]) {
+      const phoneValue = queryParams[phoneParamName];
+      if (phoneValue && !PHONE_DIGITS_PATTERN.test(phoneValue)) {
+        throw new BadRequestError(`${phoneParamName} must be 8-10 digits`);
+      }
     }
+    const historyPage = await getTopupHistory({
+      ...dateRange,
+      receiver: queryParams.receiver || null,
+      masterSim: queryParams.masterSim || null,
+      userId: queryParams.userId || null,
+      transId: queryParams.transId || null,
+      status: parseStatus(queryParams.status),
+      ...parsePagination(queryParams),
+    });
+
+    res.json({ success: true, filter: dateRange, ...historyPage });
+  } catch (error) {
+    sendErrorResponse(res, "GET /api/topup/history", error, FAILURE_MESSAGE);
+  }
 };
 
 /**
@@ -75,27 +77,34 @@ export const getHistory = async (req, res) => {
  *   page, limit (default 1, 20; max limit 100)
  */
 export const getHistoryByPhone = async (req, res) => {
-    try {
-        const phone = normalizePhone(req.query.phone);
-        if (!phone) {
-            throw new BadRequestError("Invalid phone number.");
-        }
-
-        const queryParams = req.query;
-        const dateRange = parseDateRange(queryParams, { defaultDays: 30, maxRangeDays: MAX_RANGE_DAYS });
-
-        const historyPage = await getTopupHistoryByPhone({
-            phone,
-            ...dateRange,
-            status: parseStatus(queryParams.status),
-            ...parsePagination(queryParams),
-        });
-      
-
-        res.json({ success: true, phone, filter: dateRange, ...historyPage });
-    } catch (error) {
-        sendErrorResponse(res, "GET /api/topup/historyByPhone/", error, FAILURE_MESSAGE);
+  try {
+    const phone = normalizePhone(req.query.phone);
+    if (!phone) {
+      throw new BadRequestError("Invalid phone number.");
     }
+
+    const queryParams = req.query;
+    const dateRange = parseDateRange(queryParams, {
+      defaultDays: 30,
+      maxRangeDays: MAX_RANGE_DAYS,
+    });
+
+    const historyPage = await getTopupHistoryByPhone({
+      phone,
+      ...dateRange,
+      status: parseStatus(queryParams.status),
+      ...parsePagination(queryParams),
+    });
+
+    res.json({ success: true, phone, filter: dateRange, ...historyPage });
+  } catch (error) {
+    sendErrorResponse(
+      res,
+      "GET /api/topup/historyByPhone/",
+      error,
+      FAILURE_MESSAGE,
+    );
+  }
 };
 
 /**
@@ -107,31 +116,31 @@ export const getHistoryByPhone = async (req, res) => {
  *   page, limit (default 1, 20; max limit 100)
  */
 export const getDailyByPhone = async (req, res) => {
-    try {
-        if (!req.query.phone) {
-            throw new BadRequestError("phone is required");
-        }
-        const receiverPhone = normalizePhone(req.query.phone);
-        if (!receiverPhone) {
-            throw new BadRequestError("Invalid phone number.");
-        }
-
-        const day = parseDay(req.query.date);
-        const dailyTopupPage = await getDailyTopupsByReceiver({
-            receiverPhone,
-            day,
-            ...parsePagination(req.query),
-        });
-
-        res.json({
-            success: true,
-            phone: receiverPhone,
-            date: day,
-            ...dailyTopupPage,
-        });
-    } catch (error) {
-        sendErrorResponse(res, "GET /api/topup/daily", error, FAILURE_MESSAGE);
+  try {
+    if (!req.query.phone) {
+      throw new BadRequestError("phone is required");
     }
+    const receiverPhone = normalizePhone(req.query.phone);
+    if (!receiverPhone) {
+      throw new BadRequestError("Invalid phone number.");
+    }
+
+    const day = parseDay(req.query.date);
+    const dailyTopupPage = await getDailyTopupsByReceiver({
+      receiverPhone,
+      day,
+      ...parsePagination(req.query),
+    });
+
+    res.json({
+      success: true,
+      phone: receiverPhone,
+      date: day,
+      ...dailyTopupPage,
+    });
+  } catch (error) {
+    sendErrorResponse(res, "GET /api/topup/daily", error, FAILURE_MESSAGE);
+  }
 };
 
 /**
@@ -143,18 +152,18 @@ export const getDailyByPhone = async (req, res) => {
  *   page, limit (default 1, 20; max limit 100)
  */
 export const getLogsByDay = async (req, res) => {
-    try {
-        const day = parseDay(req.query.date);
-        const topupLogPage = await getTopupLogsByDay({
-            day,
-            userId: req.query.userId || null,
-            ...parsePagination(req.query),
-        });
+  try {
+    const day = parseDay(req.query.date);
+    const topupLogPage = await getTopupLogsByDay({
+      day,
+      userId: req.query.userId || null,
+      ...parsePagination(req.query),
+    });
 
-        res.json({ success: true, date: day, ...topupLogPage });
-    } catch (error) {
-        sendErrorResponse(res, "GET /api/topup/logs", error, FAILURE_MESSAGE);
-    }
+    res.json({ success: true, date: day, ...topupLogPage });
+  } catch (error) {
+    sendErrorResponse(res, "GET /api/topup/logs", error, FAILURE_MESSAGE);
+  }
 };
 
 /**
@@ -167,21 +176,35 @@ export const getLogsByDay = async (req, res) => {
  *   page, limit (default 1, 10; max limit 100)
  */
 export const getRefillCardHistory = async (req, res) => {
-    try {
-        const queryParams = req.query;
-        const phone = parseOptionalPhone(queryParams.phone, "phone");
-        const dateRange = parseDateRange(queryParams, phone
-            ? { defaultDays: REFILL_CARD_PHONE_DEFAULT_DAYS, maxRangeDays: REFILL_CARD_PHONE_MAX_RANGE_DAYS }
-            : { defaultDays: REFILL_CARD_DEFAULT_DAYS, maxRangeDays: MAX_RANGE_DAYS });
+  try {
+    const queryParams = req.query;
+    const phone = parseOptionalPhone(queryParams.phone, "phone");
+    const dateRange = parseDateRange(
+      queryParams,
+      phone
+        ? {
+            defaultDays: REFILL_CARD_PHONE_DEFAULT_DAYS,
+            maxRangeDays: REFILL_CARD_PHONE_MAX_RANGE_DAYS,
+          }
+        : {
+            defaultDays: REFILL_CARD_DEFAULT_DAYS,
+            maxRangeDays: MAX_RANGE_DAYS,
+          },
+    );
 
-        const refillCardPage = await getRefillCardHistoryPage({
-            ...dateRange,
-            phone,
-            ...parsePagination(queryParams),
-        });
+    const refillCardPage = await getRefillCardHistoryPage({
+      ...dateRange,
+      phone,
+      ...parsePagination(queryParams),
+    });
 
-        res.json({ success: true, phone, filter: dateRange, ...refillCardPage });
-    } catch (error) {
-        sendErrorResponse(res, "GET /api/topup/refillcard", error, REFILL_CARD_FAILURE_MESSAGE);
-    }
+    res.json({ success: true, phone, filter: dateRange, ...refillCardPage });
+  } catch (error) {
+    sendErrorResponse(
+      res,
+      "GET /api/topup/refillcard",
+      error,
+      REFILL_CARD_FAILURE_MESSAGE,
+    );
+  }
 };
