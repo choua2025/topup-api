@@ -70,14 +70,17 @@ export const getDb22 = () => getPool("db22");
 export const getDb100 = () => getPool("db100");
 export const getDb125 = () => getPool("db125");
 
-// Connect to all servers at startup and log the result
+// Connect to all servers at startup: "DB connected" when all succeed, otherwise one error line per failed server
 export const connectAll = async () => {
     const connectionResults = await Promise.allSettled(serverNames.map(getPool));
+    let hasFailure = false;
     connectionResults.forEach((connectionResult, index) => {
-        const serverName = serverNames[index];
-        if (connectionResult.status === "fulfilled") console.log(`${serverName} connected`);
-        else console.error(`${serverName} connection failed:`, connectionResult.reason.message);
+        if (connectionResult.status === "rejected") {
+            hasFailure = true;
+            console.error(`${serverNames[index]} connection failed:`, connectionResult.reason.message);
+        }
     });
+    if (!hasFailure) console.log("DB connected");
 };
 
 export { sql };
