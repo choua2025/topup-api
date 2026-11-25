@@ -3,7 +3,7 @@ import { getDailyByPhone, getHistory, getHistoryByPhone, getLogsByDay, getRefill
 
 const router = Router();
 
-router.get("/history", getHistory);
+router.get("/history-ldb-sokxay", getHistory);
 router.get("/historyByPhone/", getHistoryByPhone);
 router.get("/daily", getDailyByPhone);
 router.get("/logs", getLogsByDay);
