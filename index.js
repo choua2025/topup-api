@@ -37,5 +37,5 @@ app.get("/health/db", async (req, res) => {
 app.use("/api", apiRoutes);
 await connectAll();
 app.listen(PORT, HOST, () => {
-  console.log(`Server is running on port ${HOST}:${PORT}`);
+  console.log(`Server is running on port http://${HOST}:${PORT}`);
 });
