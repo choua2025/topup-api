@@ -11,6 +11,10 @@ app.use(express.json());
 const PORT = process.env.PORT;
 const HOST = process.env.HOST;
 
+app.get("/", (req, res) => {
+  res.json({ message: "Welcome to the Topup API" });
+});
+
 // Health check: confirms every SQL Server connection works (checked in parallel)
 app.get("/health/db", async (req, res) => {
   const checkConnection = async (serverName) => {
